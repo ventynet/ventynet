@@ -1,0 +1,8 @@
+tinsp,texp,pinsp,pexp,flow,fio2
+100,300,0,30,50,10
+300,100,30,0,10,100
+100,300,30,0,50,10
+QUERY,  CPU   ,   states,   result
+  1      90,80,10ms,        32203,2590,2590    t
+         10ms     2590,        t
+
