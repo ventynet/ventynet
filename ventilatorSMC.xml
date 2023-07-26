@@ -157,7 +157,7 @@ FiO2=fiO2Actual*10</label>
 	</template>
 	<template>
 		<name>Control</name>
-		<parameter>int pInsp, int pExp, int tInsp, int tExp, int totalT, broadcast chan &amp;toggleO2, broadcast chan &amp;toggleAir</parameter>
+		<parameter>int pInsp, int pExp, int tInsp, int tExp, int totalT, broadcast chan &amp;toggleO2, broadcast chan &amp;toggleAir,  broadcast chan &amp;expi</parameter>
 		<declaration>clock a,pause;</declaration>
 		<location id="id5" x="-204" y="-756">
 			<name x="-178" y="-790">Start</name>
@@ -209,7 +209,7 @@ FiO2=fiO2Actual*10</label>
 		<transition>
 			<source ref="id10"/>
 			<target ref="id11"/>
-			<label kind="assignment" x="-399" y="-297">q=getQ(0,p2,l2),
+			<label kind="assignment" x="-399" y="-263">q=getQ(0,p2,l2),
 p2=p2+getDelta()</label>
 		</transition>
 		<transition>
@@ -497,15 +497,14 @@ broadcast chan turnExpValveOff;
 
 expValve = ExpValve(done, mix, tExp);
 
-Ventilator = Control(pInsp, pExp, tInsp, tExp, totalT, toggleO2, toggleAir);
+Ventilator = Control(pInsp, pExp, tInsp, tExp, totalT, toggleO2, toggleAir, done);
 
 system  Config, o2Valve, airValve, expValve, Ventilator;
 </system>
 	<queries>
 		<query>
 			<formula>Pr[&lt;=totalT]([]not (Q==400 and FiO2 == 30) or (airDuty == 50 and o2Duty == 30))</formula>
-			<comment>Siempre que se cumpla un caudal de aire igual a 400 y un FiO2 igual a 30 se implica que eventualmente los duty respectivos van a ser 50 y 30.
-                También se puede leer como: CaudalAire==400 y FiO2==30 conducen a airDuty==50 y o2Duty==30</comment>
+			<comment>As long as there is 400 of air flow and 30 of FiO2, this implies that eventually the duties will be 50 and 30, respectively.</comment>
 		</query>
 		<query>
 			<formula>Pr[&lt;=totalT]([] not Ventilator.Insp or psi&gt;=80)</formula>
@@ -513,15 +512,15 @@ system  Config, o2Valve, airValve, expValve, Ventilator;
 		</query>
 		<query>
 			<formula>Pr[&lt;=totalT]([] not Ventilator.Exp or correct)</formula>
-			<comment>Para todos los paths, el espirado correcto implica que no hay falla en valvula</comment>
+			<comment>For every path, correct expiration implies there is no valve failure</comment>
 		</query>
 		<query>
 			<formula>Pr[&lt;=totalT](&lt;&gt; Ventilator.Insp)</formula>
-			<comment>Es posible alcanzar el estado de inspiracion</comment>
+			<comment>It is possible to reach the inspiration state</comment>
 		</query>
 		<query>
 			<formula>Pr[&lt;=totalT](&lt;&gt;Ventilator.Exp)</formula>
-			<comment>Es posible alcanzar el estado de espiracion correcto</comment>
+			<comment>It is possible to reach the expiration state</comment>
 		</query>
 		<query>
 			<formula>Pr[&lt;=totalT](&lt;&gt; Ventilator.InsPause)</formula>
@@ -529,31 +528,35 @@ system  Config, o2Valve, airValve, expValve, Ventilator;
 		</query>
 		<query>
 			<formula>Pr[&lt;=totalT]([] not (o2Valve.on or airValve.on) or expValve.off)</formula>
-			<comment>Para todos los paths. Algún inyector encendido implica que la valvula de espiración está apagado</comment>
+			<comment>For every path, some if any injector is on, that implies that the expiration valve is closed.</comment>
 		</query>
 		<query>
 			<formula>Pr[&lt;=totalT](&lt;&gt; o2Valve.on or airValve.on)</formula>
-			<comment>Es posible alcanzar estados donde los inyectores estén encendidos. La propiedad verifica también que la propiedad anterior es una implicación donde el antecedente es posible</comment>
+			<comment>It is possible to reach states where injectors are on. 
+This property also verifies that the previous property has a possible antecedent.</comment>
 		</query>
 		<query>
 			<formula>Pr[&lt;=totalT]([] not expValve.on or (o2Valve.off and airValve.off))</formula>
-			<comment>Para todos los paths. La valvula de espiración encendida implica que ambos inyectores (oxigeno y aire) están apagados</comment>
+			<comment>For every path, if the expiration valve is on, both injectors must be off.
+</comment>
 		</query>
 		<query>
 			<formula>Pr[&lt;=totalT](&lt;&gt; expValve.on)</formula>
-			<comment>Es posible alcanzar estados donde la valvula de espiración esté encendida. La propiedad verifica también que la propiedad anterior es una implicación donde el antecedente es posible</comment>
+			<comment>It is possible to reach a state where the expiration valve is on. 
+This property also verifies that the previous property has a possible antecedent.</comment>
 		</query>
 		<query>
 			<formula>Pr[&lt;=totalT]([] not expValve.on or not(expValve.time&gt;tExp))</formula>
-			<comment>La valvula de espiración nunca está encendida por más de 200 centisegundos</comment>
+			<comment>The expiration valve never lasts more than the configured duration for the expiration phase tExp turned on.</comment>
 		</query>
 		<query>
 			<formula>Pr[&lt;=totalT]([] not (o2Valve.on and airValve.on) or not(o2Valve.time&gt;tInsp))</formula>
-			<comment>Los inyectores de aire y oxigeno para inspiración nunca están encendidos por más de 300 centisegundos</comment>
+			<comment>The oxygen and air injectors are never on for more than the configured inspiration time (tInsp).</comment>
 		</query>
 		<query>
 			<formula>E[Ventilator.a&lt;=totalT;5](max:q)</formula>
-			<comment></comment>
+			<comment>This SMC query checks the maximum value attained during the total duration (totalT) of the ventilation over 5 runs. 
+This property is useful to validate how much the actual flow in the system deviates from the desired flow.</comment>
 		</query>
 		<query>
 			<formula>Pr[Ventilator.a&lt;=totalT+pExp](&lt;&gt; Ventilator.ExpPause) &gt;=0.9</formula>

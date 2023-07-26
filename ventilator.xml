@@ -175,7 +175,7 @@ o2WithoutAir=Q-flowrate</label>
 	</template>
 	<template>
 		<name>Control</name>
-		<parameter>int pInsp, int pExp, int tInsp, int tExp,  int totalT, chan &amp;O2mixed,  chan  &amp;O2on,  chan &amp;O2Off,  chan &amp;airMixed,  chan  &amp;airOn,  chan &amp;airOff, broadcast chan &amp;expi</parameter>
+		<parameter>int pInsp, int pExp, int tInsp, int tExp,  int totalT, chan &amp;O2mixed,  chan  &amp;O2on,  chan &amp;O2Off,  chan &amp;airMixed,  chan  &amp;airOn,  chan &amp;airOff</parameter>
 		<declaration>clock a, pause;</declaration>
 		<location id="id5" x="-204" y="-756">
 			<name x="-204" y="-790">Start</name>
@@ -223,29 +223,12 @@ o2WithoutAir=Q-flowrate</label>
 		<location id="id18" x="-289" y="-807">
 			<name x="-299" y="-841">Setup</name>
 		</location>
-		<location id="id19" x="-408" y="-272">
-			<urgent/>
-		</location>
 		<init ref="id18"/>
 		<transition>
-			<source ref="id19"/>
-			<target ref="id6"/>
-			<label kind="guard" x="-331" y="-306">not correct</label>
-			<label kind="synchronisation" x="-331" y="-323">resetExp!</label>
-		</transition>
-		<transition>
-			<source ref="id19"/>
-			<target ref="id11"/>
-			<label kind="guard" x="-399" y="-221">correct</label>
-			<label kind="assignment" x="-399" y="-195">Q=getQ(0,p2,l2),
-p2=p2+getDelta()</label>
-		</transition>
-		<transition>
 			<source ref="id10"/>
-			<target ref="id19"/>
-			<label kind="select" x="-399" y="-382">k:int[0,9]</label>
-			<label kind="synchronisation" x="-399" y="-365">expi?</label>
-			<label kind="assignment" x="-399" y="-348">correct=k</label>
+			<target ref="id11"/>
+			<label kind="assignment" x="-399" y="-263">Q=getQ(0,p2,l2),
+p2=p2+getDelta()</label>
 		</transition>
 		<transition>
 			<source ref="id5"/>
@@ -393,32 +376,32 @@ int params[11] = {0,50,100,120,220,280,350,380,410,450,500};
 int getFlowWithPassage(int n){
     return params[n/10];
 }</declaration>
-		<location id="id20" x="161" y="8">
+		<location id="id19" x="161" y="8">
 			<name x="136" y="25">off</name>
 		</location>
-		<location id="id21" x="382" y="8">
+		<location id="id20" x="382" y="8">
 			<name x="374" y="25">on</name>
 			<label kind="invariant" x="365" y="42">time&lt;=tInsp</label>
 		</location>
-		<init ref="id20"/>
+		<init ref="id19"/>
 		<transition>
-			<source ref="id21"/>
-			<target ref="id20"/>
+			<source ref="id20"/>
+			<target ref="id19"/>
 			<label kind="guard" x="187" y="110">time==tInsp</label>
 			<label kind="synchronisation" x="187" y="127">mixed!</label>
 			<label kind="assignment" x="187" y="144">mix=getFlowWithPassage(duty)</label>
 			<nail x="263" y="110"/>
 		</transition>
 		<transition>
-			<source ref="id21"/>
-			<target ref="id20"/>
+			<source ref="id20"/>
+			<target ref="id19"/>
 			<label kind="synchronisation" x="246" y="-102">turnOff?</label>
 			<label kind="assignment" x="246" y="-85">time=0</label>
 			<nail x="272" y="-68"/>
 		</transition>
 		<transition>
-			<source ref="id20"/>
-			<target ref="id21"/>
+			<source ref="id19"/>
+			<target ref="id20"/>
 			<label kind="synchronisation" x="246" y="17">turnOn?</label>
 			<label kind="assignment" x="246" y="34">time=0</label>
 		</transition>
@@ -427,41 +410,41 @@ int getFlowWithPassage(int n){
 		<name>ExpValve</name>
 		<parameter> broadcast chan &amp;done, int &amp;mix</parameter>
 		<declaration>clock time;</declaration>
-		<location id="id22" x="0" y="0">
+		<location id="id21" x="0" y="0">
 			<name x="-42" y="-8">off</name>
 		</location>
-		<location id="id23" x="221" y="0">
+		<location id="id22" x="221" y="0">
 			<name x="238" y="-8">on</name>
 			<label kind="invariant" x="238" y="8">time&lt;=tExp</label>
 		</location>
-		<init ref="id22"/>
+		<init ref="id21"/>
 		<transition>
-			<source ref="id23"/>
-			<target ref="id22"/>
+			<source ref="id22"/>
+			<target ref="id21"/>
 			<label kind="synchronisation" x="17" y="93">resetExp?</label>
 			<label kind="assignment" x="18" y="76">time=0</label>
 			<nail x="221" y="76"/>
 			<nail x="0" y="76"/>
 		</transition>
 		<transition>
-			<source ref="id23"/>
-			<target ref="id23"/>
+			<source ref="id22"/>
+			<target ref="id22"/>
 			<label kind="synchronisation" x="195" y="-85">done!</label>
 			<label kind="assignment" x="195" y="-68">mix=0</label>
 			<nail x="195" y="-42"/>
 			<nail x="246" y="-42"/>
 		</transition>
 		<transition>
-			<source ref="id23"/>
-			<target ref="id22"/>
+			<source ref="id22"/>
+			<target ref="id21"/>
 			<label kind="guard" x="85" y="-136">time==tExp</label>
 			<label kind="synchronisation" x="93" y="-119">expOff?</label>
 			<label kind="assignment" x="93" y="-102">time=0</label>
 			<nail x="110" y="-76"/>
 		</transition>
 		<transition>
-			<source ref="id22"/>
-			<target ref="id23"/>
+			<source ref="id21"/>
+			<target ref="id22"/>
 			<label kind="synchronisation" x="68" y="0">expOn?</label>
 			<label kind="assignment" x="68" y="17">time=0</label>
 		</transition>
@@ -511,7 +494,7 @@ chan turnExpValveOff;
 
 expValve = ExpValve(mixExpired, mix);
 
-Ventilator = Control(pInsp,pExp,tInsp,tExp, totalT, O2Mixed, turnO2On, turnO2Off, airMixed, turnAirOn, turnAirOff, mixExpired);
+Ventilator = Control(pInsp,pExp,tInsp,tExp, totalT, O2Mixed, turnO2On, turnO2Off, airMixed, turnAirOn, turnAirOff);
 
 system  config, o2Valve, airValve, expValve, Ventilator;
 </system>
@@ -526,16 +509,12 @@ system  config, o2Valve, airValve, expValve, Ventilator;
 			<comment></comment>
 		</query>
 		<query>
-			<formula>A[] (not Ventilator.Exp or correct)</formula>
-			<comment>Para todos los paths, el espirado correcto implica que no hay falla en valvula</comment>
-		</query>
-		<query>
 			<formula>E&lt;&gt; Ventilator.Insp</formula>
-			<comment>Es posible alcanzar el estado de inspiracion</comment>
+			<comment>It is possible to reach the inspiration state.</comment>
 		</query>
 		<query>
 			<formula>E&lt;&gt; Ventilator.Exp</formula>
-			<comment>Es posible alcanzar el estado de espiracion correcto</comment>
+			<comment>It is possible to reach the expiration state.</comment>
 		</query>
 		<query>
 			<formula>E&lt;&gt; Ventilator.ExpPause</formula>
@@ -547,27 +526,33 @@ system  config, o2Valve, airValve, expValve, Ventilator;
 		</query>
 		<query>
 			<formula>A[] (not (o2Valve.on or airValve.on) or expValve.off)</formula>
-			<comment>Para todos los paths. Algún inyector encendido implica que la valvula de espiración está apagado</comment>
+			<comment>If there is an inspiration injector on, then the expiration valve is closed.</comment>
 		</query>
 		<query>
 			<formula>E&lt;&gt; o2Valve.on or airValve.on</formula>
-			<comment>Es posible alcanzar estados donde los inyectores estén encendidos. La propiedad verifica también que la propiedad anterior es una implicación donde el antecedente es posible</comment>
+			<comment>It is possible to reach states where injectors are on. 
+This property also verifies that the previous property has a possible antecedent.</comment>
 		</query>
 		<query>
 			<formula>A[] (not expValve.on or (o2Valve.off and airValve.off))</formula>
-			<comment>Para todos los paths. La valvula de espiración encendida implica que ambos inyectores (oxigeno y aire) están apagados</comment>
+			<comment>For every path, if the expiration valve is on, both injectors
+must be off.</comment>
 		</query>
 		<query>
 			<formula>E&lt;&gt; expValve.on</formula>
-			<comment>Es posible alcanzar estados donde la valvula de espiración esté encendida. La propiedad verifica también que la propiedad anterior es una implicación donde el antecedente es posible</comment>
+			<comment>It is possible to reach a state where the expiration valve
+is on. This property also verifies that the previous property
+has a possible antecedent.</comment>
 		</query>
 		<query>
 			<formula>A[] (not expValve.on or not(expValve.time&gt;tExp))</formula>
-			<comment>La valvula de espiración nunca está encendida por más de 200 centisegundos</comment>
+			<comment>The expiration valve never lasts more than the configured
+duration for the expiration phase (tExp) turned on</comment>
 		</query>
 		<query>
 			<formula>A[] (not (o2Valve.on and airValve.on) or not(o2Valve.time&gt;tInsp))</formula>
-			<comment>Los inyectores de aire y oxigeno para inspiración nunca están encendidos por más de 300 centisegundos</comment>
+			<comment>The oxygen and air injectors are never on for more than
+the configured inspiration time (tInsp).</comment>
 		</query>
 	</queries>
 </nta>
