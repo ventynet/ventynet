@@ -379,16 +379,16 @@ Using the inverse of the flowrate vs. duty table
 |    90    |   450  |
 |    100   |   500  |
 
-and by completing with 30% duty
+and by completing low values with the extrapolated function
 
 | duty     | flow   |
 ---------------------
-|    00    |   120  |
-|    10    |   120  |
-|    20    |   120  |
+|    00    |   0    |
+|    10    |   50   |
+|    20    |   100  |
 
 **/
-int params[11] = {120,120,120,120,220,280,350,380,410,450,500};
+int params[11] = {0,50,100,120,220,280,350,380,410,450,500};
 
 int getFlowWithPassage(int n){
     return params[n/10];
