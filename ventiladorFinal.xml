@@ -126,9 +126,8 @@ double getQ(double p_i, double p_j, double l) {
 		<transition id="id6">
 			<source ref="id3"/>
 			<target ref="id4"/>
-			<label kind="select" x="561" y="51">x : int[50,100]</label>
 			<label kind="synchronisation" x="569" y="119">endSetup!</label>
-			<label kind="assignment" x="561" y="68">psi=x,
+			<label kind="assignment" x="561" y="68">psi=80,
 p1=setPressure1()</label>
 		</transition>
 		<transition id="id7">
@@ -146,15 +145,14 @@ o2WithoutAir=Q-O2InAir</label>
 		<transition id="id9">
 			<source ref="id0"/>
 			<target ref="id1"/>
-			<label kind="select" x="-51" y="-76">fiO2Actual: int[1,10],
-j: int[10,50]</label>
-			<label kind="assignment" x="-51" y="-34">Q=j,
+			<label kind="select" x="-51" y="-76">fiO2Actual: int[1,10]</label>
+			<label kind="assignment" x="-51" y="-34">Q=airflow,
 FiO2=fiO2Actual*10</label>
 		</transition>
 	</template>
 	<template>
 		<name>Control</name>
-		<parameter>int pInsp, int pExp, int tInsp, int tExp, int totalT, broadcast chan &amp;toggleO2, broadcast chan &amp;toggleAir</parameter>
+		<parameter>int pInsp, int pExp, int tInsp, int tExp, int totalT, broadcast chan &amp;toggleO2, broadcast chan &amp;toggleAir, broadcast chan &amp;expiration</parameter>
 		<declaration>clock a,pause;</declaration>
 		<location id="id10" x="-204" y="-756">
 			<name x="-178" y="-790">Start</name>
@@ -206,6 +204,7 @@ FiO2=fiO2Actual*10</label>
 		<transition id="id24">
 			<source ref="id15"/>
 			<target ref="id16"/>
+			<label kind="synchronisation" x="-399" y="-255">expiration?</label>
 			<label kind="assignment" x="-399" y="-297">q=getQ(0,p2,l2),
 p2=p2+getDelta()</label>
 		</transition>
@@ -407,7 +406,6 @@ p2=p2+getDelta()</label>
 		<transition id="id52">
 			<source ref="id50"/>
 			<target ref="id50"/>
-			<label kind="guard" x="195" y="-102">time==tExp</label>
 			<label kind="synchronisation" x="195" y="-85">done!</label>
 			<label kind="assignment" x="195" y="-68">mix=0</label>
 			<nail x="195" y="-42"/>
@@ -506,7 +504,7 @@ p2=p2+getDelta()</label>
         expValve = ExpValve(done, mix, tExp);
 
         //ventilator = General(finConfiguracion, oxigenoMezclado, encenderOxigeno, apagarOxigeno, aireMezclado, encenderAire, apagarAire, mezclaEspirada, encenderValvula, apagarValvula);
-        Ventilator = Control(pInsp, pExp, tInsp, tExp, totalT, toggleO2, toggleAir);
+        Ventilator = Control(pInsp, pExp, tInsp, tExp, totalT, toggleO2, toggleAir, done);
         // List one or more processes to be composed into a system.
         system  Config, o2Valve, airValve, expValve, Ventilator;
         //system TestProcess;</system>
@@ -1934,6 +1932,10 @@ Mean estimate of displayed sample: 233.44 ± 2.3237 (95% CI)</comment>
 					<comment/>
 				</plot>
 			</result>
+		</query>
+		<query>
+			<formula>simulate[&lt;=620;1]{q}</formula>
+			<comment/>
 		</query>
 	</queries>
 </nta>

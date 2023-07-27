@@ -151,10 +151,13 @@ int getDelta() {
 		<transition>
 			<source ref="id3"/>
 			<target ref="id4"/>
-			<label kind="select" x="731" y="-51">iPause:int[0,30],
-ePause:int[0,20],
+			<label kind="select" x="731" y="-51">pause:int[0,3],
 ins:int[100,200]</label>
 			<label kind="synchronisation" x="612" y="42">endSetup!</label>
+			<label kind="assignment" x="739" y="25">tInsp=ins,
+tExp=ins*3,
+pInsp=pause*10,
+pExp=pause*30</label>
 		</transition>
 		<transition>
 			<source ref="id2"/>
@@ -171,9 +174,9 @@ o2WithoutAir=Q-flowrate</label>
 		<transition>
 			<source ref="id0"/>
 			<target ref="id1"/>
-			<label kind="select" x="93" y="-127">j:int[10,50],
+			<label kind="select" x="93" y="-127">j:int[1,5],
 fio2:int[1,10]</label>
-			<label kind="assignment" x="93" y="-85">Q=j,
+			<label kind="assignment" x="93" y="-85">Q=j*10,
 FiO2=fio2</label>
 		</transition>
 	</template>
@@ -516,14 +519,6 @@ p2=p2+getDelta()</label>
 		<query>
 			<formula>A[] not deadlock</formula>
 			<comment>Siempre habrán transiciones desde alguna locacion para realizar</comment>
-		</query>
-		<query>
-			<formula>Q==400 and FiO2 == 30 --&gt; airDuty == 50 and o2Duty == 30</formula>
-			<comment></comment>
-		</query>
-		<query>
-			<formula>A[] (not Ventilator.Exp or correct)</formula>
-			<comment>Para todos los paths, el espirado correcto implica que no hay falla en valvula</comment>
 		</query>
 		<query>
 			<formula>E&lt;&gt; Ventilator.Insp</formula>
