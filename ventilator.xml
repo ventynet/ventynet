@@ -13,25 +13,16 @@ FiO2
 */
 const int tInsp=100;
 const int tExp=300;
-const int pInsp=0;
+const int pInsp=20;
 const int pExp=30;
-const int totalT = tInsp + tExp;
+const int totalT = tInsp + tExp + pInsp;
 
-
-int psi;
-chan reset;
-chan resetExp;
-chan inspiration, expiration;
-chan endSetup;
-chan expOn, expOff;
+broadcast chan reset;
+broadcast chan inspiration, expiration;
+broadcast chan endSetup;
+broadcast chan expOn, expOff;
 int Q; // Int representation of q
-/**
-Two injectors, one for oxygen and one for air
-**/
-typedef struct {
-    bool isOn;
-    int flowrate;
-} Injector;
+
     
 // With scaling factor 10E4
 const double PI = 3.141592;
@@ -46,7 +37,7 @@ int v1 = 4250; // tank volume 1 (m^3)
 int v2 = 1000;    // tank volume 2 (m^3)
 int p1 = 10000; // initial pressure in tank 1 (Psi)
 int p2 = 100; // initial pressure in tank 2 (Psi)
-int correct;
+
 double delta, delta2;
 
 double p2x = 6894.76;
@@ -67,7 +58,16 @@ int getDelta() {
 //    delta = (100*dt*Q)/(1E-3);
 //    delta2 = (dt*q)/(1E-3);
     return fint((100*dt*Q)/(6894.76*1E-3));
-}</declaration>
+}
+
+/**
+Variables used when making the model SMC-compatible
+see: UPPAAL-SMC tutorial (https://doi.org/10.1007/s10009-014-0361-y)
+**/
+
+int recvLoc=1;
+clock timeExpV;
+</declaration>
 	<template>
 		<name x="5" y="5">Setup</name>
 		<parameter>int[0,500] &amp;airflow, int[1,10] &amp;FiO2, int[0,100] &amp;dutyAir,int[0,100] &amp;dutyO2</parameter>
@@ -151,9 +151,8 @@ int getDuty(int flow){
 		<transition>
 			<source ref="id3"/>
 			<target ref="id4"/>
-			<label kind="select" x="561" y="51">x : int[50,100]</label>
-			<label kind="synchronisation" x="561" y="68">endSetup!</label>
-			<label kind="assignment" x="561" y="85">psi=x</label>
+			<label kind="guard" x="561" y="59">recvLoc==1</label>
+			<label kind="synchronisation" x="561" y="34">endSetup!</label>
 		</transition>
 		<transition>
 			<source ref="id2"/>
@@ -175,18 +174,19 @@ o2WithoutAir=Q-flowrate</label>
 	</template>
 	<template>
 		<name>Control</name>
-		<parameter>int pInsp, int pExp, int tInsp, int tExp,  int totalT, chan &amp;O2mixed,  chan  &amp;O2on,  chan &amp;O2Off,  chan &amp;airMixed,  chan  &amp;airOn,  chan &amp;airOff</parameter>
+		<parameter>int pInsp, int pExp, int tInsp, int tExp,  int totalT, broadcast chan &amp;O2mixed,  broadcast chan  &amp;O2on,  broadcast chan &amp;O2Off,  broadcast chan &amp;airMixed,  broadcast chan  &amp;airOn,  broadcast chan &amp;airOff, broadcast chan &amp;mix</parameter>
 		<declaration>clock a, pause;</declaration>
 		<location id="id5" x="-204" y="-756">
-			<name x="-204" y="-790">Start</name>
+			<name x="-187" y="-790">Start</name>
 			<label kind="invariant" x="-187" y="-765">a&lt;=1</label>
 		</location>
 		<location id="id6" x="-204" y="-408">
+			<name x="-214" y="-442">mid</name>
 			<urgent/>
 		</location>
 		<location id="id7" x="8" y="-408">
 			<name x="33" y="-425">openInsp</name>
-			<label kind="exponentialrate" x="25" y="-417">1</label>
+			<label kind="invariant" x="25" y="-408">pause&lt;=1</label>
 		</location>
 		<location id="id8" x="8" y="-110">
 			<name x="25" y="-119">Insp</name>
@@ -198,15 +198,15 @@ o2WithoutAir=Q-flowrate</label>
 		</location>
 		<location id="id10" x="-408" y="-408">
 			<name x="-485" y="-425">openExp</name>
-			<label kind="exponentialrate" x="-391" y="-408">1</label>
+			<label kind="invariant" x="-484" y="-399">pause&lt;=1</label>
 		</location>
 		<location id="id11" x="-408" y="-110">
 			<name x="-451" y="-118">Exp</name>
 			<urgent/>
 		</location>
 		<location id="id12" x="-578" y="-399">
-			<name x="-654" y="-408">ExpPause</name>
-			<label kind="invariant" x="-671" y="-391">pause&lt;=pExp</label>
+			<name x="-671" y="-416">ExpPause</name>
+			<label kind="invariant" x="-680" y="-391">pause&lt;=pExp</label>
 		</location>
 		<location id="id13" x="-246" y="-680">
 			<urgent/>
@@ -215,13 +215,16 @@ o2WithoutAir=Q-flowrate</label>
 			<urgent/>
 		</location>
 		<location id="id15" x="-204" y="-603">
+			<label kind="exponentialrate" x="-187" y="-603">1</label>
 		</location>
 		<location id="id16" x="-263" y="-527">
+			<label kind="invariant" x="-273" y="-510">1</label>
 		</location>
 		<location id="id17" x="-144" y="-527">
+			<label kind="invariant" x="-154" y="-510">1</label>
 		</location>
-		<location id="id18" x="-289" y="-807">
-			<name x="-299" y="-841">Setup</name>
+		<location id="id18" x="-204" y="-833">
+			<name x="-214" y="-867">Setup</name>
 		</location>
 		<init ref="id18"/>
 		<transition>
@@ -231,16 +234,9 @@ o2WithoutAir=Q-flowrate</label>
 p2=p2+getDelta()</label>
 		</transition>
 		<transition>
-			<source ref="id5"/>
-			<target ref="id18"/>
-			<label kind="guard" x="-365" y="-790">psi&lt;80</label>
-			<label kind="synchronisation" x="-357" y="-773">reset!</label>
-			<nail x="-289" y="-756"/>
-		</transition>
-		<transition>
 			<source ref="id18"/>
 			<target ref="id5"/>
-			<label kind="synchronisation" x="-263" y="-816">endSetup?</label>
+			<label kind="synchronisation" x="-187" y="-824">endSetup?</label>
 		</transition>
 		<transition>
 			<source ref="id17"/>
@@ -277,13 +273,13 @@ p2=p2+getDelta()</label>
 		<transition>
 			<source ref="id5"/>
 			<target ref="id14"/>
-			<label kind="guard" x="-170" y="-748">a==1 and psi&gt;=80</label>
+			<label kind="guard" x="-170" y="-748">a==1</label>
 			<label kind="synchronisation" x="-170" y="-731">airOn!</label>
 		</transition>
 		<transition>
 			<source ref="id5"/>
 			<target ref="id13"/>
-			<label kind="guard" x="-365" y="-748">a==1 and psi&gt;=80</label>
+			<label kind="guard" x="-263" y="-756">a==1</label>
 			<label kind="synchronisation" x="-272" y="-731">O2on!</label>
 		</transition>
 		<transition>
@@ -294,34 +290,35 @@ p2=p2+getDelta()</label>
 		<transition>
 			<source ref="id11"/>
 			<target ref="id6"/>
-			<label kind="guard" x="-348" y="-136">a&lt;totalT</label>
+			<label kind="guard" x="-314" y="-136">a&lt;totalT</label>
 			<nail x="-204" y="-110"/>
 		</transition>
 		<transition>
 			<source ref="id12"/>
 			<target ref="id6"/>
-			<label kind="guard" x="-663" y="-476">a&gt;=totalT &amp;&amp; pause==pExp</label>
+			<label kind="guard" x="-586" y="-476">pause==pExp</label>
 			<label kind="assignment" x="-476" y="-501">a=0</label>
 			<nail x="-425" y="-493"/>
 		</transition>
 		<transition>
 			<source ref="id11"/>
 			<target ref="id12"/>
-			<label kind="guard" x="-586" y="-297">a&gt;=totalT</label>
-			<label kind="synchronisation" x="-569" y="-272">expOff!</label>
+			<label kind="guard" x="-595" y="-314">a&gt;=totalT</label>
+			<label kind="synchronisation" x="-578" y="-272">expOff!</label>
 			<label kind="assignment" x="-552" y="-246">pause=0,
 Q=0</label>
 		</transition>
 		<transition>
 			<source ref="id6"/>
 			<target ref="id10"/>
-			<label kind="guard" x="-306" y="-425">a&gt;tInsp</label>
-			<label kind="synchronisation" x="-374" y="-425">expOn!</label>
+			<label kind="guard" x="-314" y="-408">a&gt;tInsp</label>
+			<label kind="synchronisation" x="-382" y="-425">expOn!</label>
+			<label kind="assignment" x="-390" y="-408">pause=0</label>
 		</transition>
 		<transition>
 			<source ref="id9"/>
 			<target ref="id6"/>
-			<label kind="guard" x="42" y="-493">a&gt;=tInsp+pInsp &amp;&amp; pause==pInsp</label>
+			<label kind="guard" x="17" y="-510">pause==pInsp</label>
 			<nail x="8" y="-484"/>
 		</transition>
 		<transition>
@@ -341,11 +338,12 @@ p2=p2+getDelta()</label>
 			<source ref="id6"/>
 			<target ref="id7"/>
 			<label kind="guard" x="-102" y="-433">a&lt;=tInsp</label>
+			<label kind="assignment" x="-127" y="-408">pause=0</label>
 		</transition>
 	</template>
 	<template>
 		<name>MixChamber</name>
-		<parameter> chan &amp;mixed,  chan  &amp;turnOn,  chan &amp;turnOff, int[0,100] &amp;duty,  chan &amp;finConfiguracion, int &amp;mix</parameter>
+		<parameter> broadcast chan &amp;mixed,  broadcast chan  &amp;turnOn,  broadcast chan &amp;turnOff, int[0,100] &amp;duty,  broadcast chan &amp;finConfiguracion, int &amp;mix</parameter>
 		<declaration>clock time;
 
 /**
@@ -409,44 +407,27 @@ int getFlowWithPassage(int n){
 	<template>
 		<name>ExpValve</name>
 		<parameter> broadcast chan &amp;done, int &amp;mix</parameter>
-		<declaration>clock time;</declaration>
 		<location id="id21" x="0" y="0">
 			<name x="-42" y="-8">off</name>
 		</location>
 		<location id="id22" x="221" y="0">
 			<name x="238" y="-8">on</name>
-			<label kind="invariant" x="238" y="8">time&lt;=tExp</label>
+			<label kind="invariant" x="211" y="17">timeExpV&lt;=tExp</label>
 		</location>
 		<init ref="id21"/>
 		<transition>
 			<source ref="id22"/>
 			<target ref="id21"/>
-			<label kind="synchronisation" x="17" y="93">resetExp?</label>
-			<label kind="assignment" x="18" y="76">time=0</label>
-			<nail x="221" y="76"/>
-			<nail x="0" y="76"/>
-		</transition>
-		<transition>
-			<source ref="id22"/>
-			<target ref="id22"/>
-			<label kind="synchronisation" x="195" y="-85">done!</label>
-			<label kind="assignment" x="195" y="-68">mix=0</label>
-			<nail x="195" y="-42"/>
-			<nail x="246" y="-42"/>
-		</transition>
-		<transition>
-			<source ref="id22"/>
-			<target ref="id21"/>
-			<label kind="guard" x="85" y="-136">time==tExp</label>
-			<label kind="synchronisation" x="93" y="-119">expOff?</label>
-			<label kind="assignment" x="93" y="-102">time=0</label>
+			<label kind="synchronisation" x="85" y="-136">expOff?</label>
+			<label kind="assignment" x="85" y="-119">timeExpV=0,
+mix=0</label>
 			<nail x="110" y="-76"/>
 		</transition>
 		<transition>
 			<source ref="id21"/>
 			<target ref="id22"/>
 			<label kind="synchronisation" x="68" y="0">expOn?</label>
-			<label kind="assignment" x="68" y="17">time=0</label>
+			<label kind="assignment" x="68" y="17">timeExpV=0</label>
 		</transition>
 	</template>
 	<system>/**
@@ -466,21 +447,21 @@ int[0,100] o2Duty;
 /**
 channel to notify when injectors are configured and ready
 **/
-chan configDone;
+broadcast chan configDone;
 
 //flowrate, FiO2, inputs
 //airDuty, o2Duty, outputs
 config = Setup(flowrate, FiO2, airDuty, o2Duty);
 
-chan turnO2On; 
-chan turnAirOn;
-chan turnO2Off;
-chan turnAirOff;
+broadcast chan turnO2On; 
+broadcast chan turnAirOn;
+broadcast chan turnO2Off; 
+broadcast chan turnAirOff;
 
 int mix=0;
 
-chan O2Mixed;
-chan airMixed;
+broadcast chan O2Mixed;
+broadcast chan airMixed;
 
 o2Valve = MixChamber(O2Mixed, turnO2On, turnO2Off, o2Duty, configDone, mix);
 airValve = MixChamber(airMixed, turnAirOn, turnAirOff, airDuty, configDone, mix);
@@ -489,12 +470,12 @@ airValve = MixChamber(airMixed, turnAirOn, turnAirOff, airDuty, configDone, mix)
 expiration valve
 **/
 broadcast chan mixExpired;
-chan turnExpValveOn;
-chan turnExpValveOff;
+broadcast chan turnExpValveOn;
+broadcast chan turnExpValveOff;
 
 expValve = ExpValve(mixExpired, mix);
 
-Ventilator = Control(pInsp,pExp,tInsp,tExp, totalT, O2Mixed, turnO2On, turnO2Off, airMixed, turnAirOn, turnAirOff);
+Ventilator = Control(pInsp,pExp,tInsp,tExp, totalT, O2Mixed, turnO2On, turnO2Off, airMixed, turnAirOn, turnAirOff, mixExpired);
 
 system  config, o2Valve, airValve, expValve, Ventilator;
 </system>
@@ -503,10 +484,6 @@ system  config, o2Valve, airValve, expValve, Ventilator;
 			<formula>A[] not deadlock</formula>
 			<comment>At every stage, at least one transition will be eventually enabled. 
 </comment>
-		</query>
-		<query>
-			<formula>Q==400 and FiO2 == 30 --&gt; airDuty == 50 and o2Duty == 30</formula>
-			<comment></comment>
 		</query>
 		<query>
 			<formula>E&lt;&gt; Ventilator.Insp</formula>
@@ -545,14 +522,38 @@ is on. This property also verifies that the previous property
 has a possible antecedent.</comment>
 		</query>
 		<query>
-			<formula>A[] (not expValve.on or not(expValve.time&gt;tExp))</formula>
+			<formula>A[] (not expValve.on or (timeExpV&lt;=tExp))</formula>
 			<comment>The expiration valve never lasts more than the configured
 duration for the expiration phase (tExp) turned on</comment>
+		</query>
+		<query>
+			<formula>E&lt;&gt;(expValve.on and timeExpV &gt; tExp)</formula>
+			<comment></comment>
 		</query>
 		<query>
 			<formula>A[] (not (o2Valve.on and airValve.on) or not(o2Valve.time&gt;tInsp))</formula>
 			<comment>The oxygen and air injectors are never on for more than
 the configured inspiration time (tInsp).</comment>
+		</query>
+		<query>
+			<formula>simulate[Ventilator.a&lt;=totalT*2]{Q}</formula>
+			<comment></comment>
+		</query>
+		<query>
+			<formula>Pr[Ventilator.a &lt;= tInsp](&lt;&gt; Ventilator.Exp)</formula>
+			<comment></comment>
+		</query>
+		<query>
+			<formula>E&lt;&gt;(Ventilator.Exp and Ventilator.a&lt;=tInsp)</formula>
+			<comment></comment>
+		</query>
+		<query>
+			<formula>Pr[Ventilator.a &lt;= totalT*5](&lt;&gt;Ventilator.ExpPause)</formula>
+			<comment></comment>
+		</query>
+		<query>
+			<formula>E&lt;&gt;(Ventilator.ExpPause and Ventilator.a &lt; totalT)</formula>
+			<comment>Is it possible to reach the expiratory pause before totalT? (Safety property, should be false).</comment>
 		</query>
 	</queries>
 </nta>
