@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!DOCTYPE nta PUBLIC '-//Uppaal Team//DTD Flat System 1.1//EN' 'http://www.it.uu.se/research/group/darts/uppaal/flat-1_2.dtd'>
+<!DOCTYPE nta PUBLIC '-//Uppaal Team//DTD Flat System 1.6//EN' 'http://www.it.uu.se/research/group/darts/uppaal/flat-1_6.dtd'>
 <nta>
 	<declaration>
 /**
@@ -12,12 +12,12 @@ Flowrate
 FiO2
 */
 const int tInsp=100;
-const int tExp=300;
+const int tExp=200;
 const int pInsp=20;
 const int pExp=30;
 const int totalT = tInsp + tExp + pInsp;
 
-broadcast chan reset;
+broadcast chan reset, resetExp;
 broadcast chan inspiration, expiration;
 broadcast chan endSetup;
 broadcast chan expOn, expOff;
@@ -64,20 +64,17 @@ int getDelta() {
 Variables used when making the model SMC-compatible
 see: UPPAAL-SMC tutorial (https://doi.org/10.1007/s10009-014-0361-y)
 **/
-
-int recvLoc=1;
-clock timeExpV;
+clock timeExpV, a;
 </declaration>
 	<template>
 		<name x="5" y="5">Setup</name>
-		<parameter>int[0,500] &amp;airflow, int[1,10] &amp;FiO2, int[0,100] &amp;dutyAir,int[0,100] &amp;dutyO2</parameter>
+		<parameter>int[0,500] &amp;airflow, int[1,100] &amp;FiO2, int[0,100] &amp;dutyAir,int[0,100] &amp;dutyO2</parameter>
 		<declaration>/**
 Injector workcycle configuration
-flowrate: Required flow ([L^3 T^-1]; given in liters per minute )
 FiO2: Fraction of inspirated oxygen, given in percentage of oxygen in the air
 Duty: The opening of the injector's valve, where 100 is fully opened and 0 is fully closed.
 **/
-int[0,500] flowrate;
+int[0,500] o2InAir;
 int[0,500] o2WithoutAir;
 
 
@@ -133,217 +130,220 @@ int getDuty(int flow){
 			<committed/>
 		</location>
 		<location id="id2" x="365" y="17">
-			<label kind="exponentialrate" x="391" y="25">1</label>
 			<committed/>
 		</location>
 		<location id="id3" x="552" y="17">
 			<committed/>
 		</location>
 		<location id="id4" x="552" y="144">
+			<name x="578" y="136">Idle</name>
+			<label kind="exponentialrate" x="542" y="178">1</label>
 		</location>
 		<init ref="id0"/>
-		<transition>
+		<transition id="id5">
 			<source ref="id4"/>
 			<target ref="id0"/>
 			<label kind="synchronisation" x="238" y="153">reset?</label>
 			<nail x="-68" y="144"/>
 		</transition>
-		<transition>
+		<transition id="id6">
 			<source ref="id3"/>
 			<target ref="id4"/>
-			<label kind="guard" x="561" y="59">recvLoc==1</label>
 			<label kind="synchronisation" x="561" y="34">endSetup!</label>
 		</transition>
-		<transition>
+		<transition id="id7">
 			<source ref="id2"/>
 			<target ref="id3"/>
 			<label kind="assignment" x="391" y="-59">dutyAir=getDuty(o2WithoutAir),
-dutyO2=getDuty(flowrate)</label>
+dutyO2=getDuty(o2InAir)</label>
 		</transition>
-		<transition>
+		<transition id="id8">
 			<source ref="id1"/>
 			<target ref="id2"/>
-			<label kind="assignment" x="144" y="42">flowrate=fint(round(Q*FiO2/100)),
-o2WithoutAir=Q-flowrate</label>
+			<label kind="assignment" x="144" y="42">o2InAir=fint(round(airflow*FiO2/100)),
+o2WithoutAir=airflow-o2InAir</label>
 		</transition>
-		<transition>
+		<transition id="id9">
 			<source ref="id0"/>
 			<target ref="id1"/>
-			<label kind="assignment" x="-42" y="-34">Q=airflow</label>
+			<label kind="select" x="-51" y="-42">fio2Actual: int[1,10]</label>
+			<label kind="assignment" x="-51" y="-17">FiO2 = fio2Actual*10</label>
 		</transition>
 	</template>
 	<template>
 		<name>Control</name>
-		<parameter>int pInsp, int pExp, int tInsp, int tExp,  int totalT, broadcast chan &amp;O2mixed,  broadcast chan  &amp;O2on,  broadcast chan &amp;O2Off,  broadcast chan &amp;airMixed,  broadcast chan  &amp;airOn,  broadcast chan &amp;airOff, broadcast chan &amp;mix</parameter>
-		<declaration>clock a, pause;</declaration>
-		<location id="id5" x="-204" y="-756">
+		<parameter>int pInsp, int pExp, int tInsp, int tExp,  int totalT, broadcast chan &amp;O2mixed,  broadcast chan  &amp;O2on,  broadcast chan &amp;airMixed,  broadcast chan  &amp;airOn,  broadcast chan &amp;supplyOff</parameter>
+		<declaration>clock  pause;</declaration>
+		<location id="id10" x="-204" y="-756">
 			<name x="-187" y="-790">Start</name>
 			<label kind="invariant" x="-187" y="-765">a&lt;=1</label>
 		</location>
-		<location id="id6" x="-204" y="-408">
-			<name x="-214" y="-442">mid</name>
+		<location id="id11" x="-204" y="-408">
 			<urgent/>
 		</location>
-		<location id="id7" x="8" y="-408">
+		<location id="id12" x="8" y="-408">
 			<name x="33" y="-425">openInsp</name>
 			<label kind="invariant" x="25" y="-408">pause&lt;=1</label>
 		</location>
-		<location id="id8" x="8" y="-110">
+		<location id="id13" x="8" y="-110">
 			<name x="25" y="-119">Insp</name>
 			<urgent/>
 		</location>
-		<location id="id9" x="195" y="-408">
+		<location id="id14" x="195" y="-408">
 			<name x="212" y="-425">InsPause</name>
 			<label kind="invariant" x="212" y="-408">pause&lt;=pInsp</label>
 		</location>
-		<location id="id10" x="-408" y="-408">
+		<location id="id15" x="-408" y="-408">
 			<name x="-485" y="-425">openExp</name>
 			<label kind="invariant" x="-484" y="-399">pause&lt;=1</label>
 		</location>
-		<location id="id11" x="-408" y="-110">
+		<location id="id16" x="-408" y="-110">
 			<name x="-451" y="-118">Exp</name>
 			<urgent/>
 		</location>
-		<location id="id12" x="-578" y="-399">
+		<location id="id17" x="-578" y="-399">
 			<name x="-671" y="-416">ExpPause</name>
 			<label kind="invariant" x="-680" y="-391">pause&lt;=pExp</label>
 		</location>
-		<location id="id13" x="-246" y="-680">
+		<location id="id18" x="-246" y="-680">
 			<urgent/>
 		</location>
-		<location id="id14" x="-153" y="-680">
+		<location id="id19" x="-153" y="-680">
 			<urgent/>
 		</location>
-		<location id="id15" x="-204" y="-603">
-			<label kind="exponentialrate" x="-187" y="-603">1</label>
+		<location id="id20" x="-204" y="-603">
+			<label kind="exponentialrate" x="-178" y="-620">1</label>
+			<urgent/>
 		</location>
-		<location id="id16" x="-263" y="-527">
+		<location id="id21" x="-263" y="-527">
 			<label kind="invariant" x="-273" y="-510">1</label>
+			<urgent/>
 		</location>
-		<location id="id17" x="-144" y="-527">
+		<location id="id22" x="-144" y="-527">
 			<label kind="invariant" x="-154" y="-510">1</label>
+			<urgent/>
 		</location>
-		<location id="id18" x="-204" y="-833">
-			<name x="-214" y="-867">Setup</name>
+		<location id="id23" x="-204" y="-824">
+			<name x="-214" y="-858">Setup</name>
 		</location>
-		<init ref="id18"/>
-		<transition>
-			<source ref="id10"/>
-			<target ref="id11"/>
+		<init ref="id23"/>
+		<transition id="id24">
+			<source ref="id15"/>
+			<target ref="id16"/>
+			<label kind="guard" x="-408" y="-293">pause==1</label>
 			<label kind="assignment" x="-399" y="-263">Q=getQ(0,p2,l2),
 p2=p2+getDelta()</label>
 		</transition>
-		<transition>
-			<source ref="id18"/>
-			<target ref="id5"/>
+		<transition id="id25">
+			<source ref="id23"/>
+			<target ref="id10"/>
 			<label kind="synchronisation" x="-187" y="-824">endSetup?</label>
 		</transition>
-		<transition>
-			<source ref="id17"/>
-			<target ref="id6"/>
-			<label kind="synchronisation" x="-153" y="-501">O2mixed?</label>
-			<label kind="assignment" x="-170" y="-467">a=0</label>
+		<transition id="id26">
+			<source ref="id22"/>
+			<target ref="id11"/>
+			<label kind="synchronisation" x="-153" y="-501">O2mixed!</label>
 		</transition>
-		<transition>
-			<source ref="id16"/>
-			<target ref="id6"/>
-			<label kind="synchronisation" x="-323" y="-493">airMixed?</label>
-			<label kind="assignment" x="-263" y="-467">a=0</label>
+		<transition id="id27">
+			<source ref="id21"/>
+			<target ref="id11"/>
+			<label kind="synchronisation" x="-323" y="-493">airMixed!</label>
 		</transition>
-		<transition>
-			<source ref="id15"/>
-			<target ref="id17"/>
-			<label kind="synchronisation" x="-170" y="-586">airMixed?</label>
+		<transition id="id28">
+			<source ref="id20"/>
+			<target ref="id22"/>
+			<label kind="synchronisation" x="-170" y="-586">airMixed!</label>
 		</transition>
-		<transition>
-			<source ref="id15"/>
-			<target ref="id16"/>
-			<label kind="synchronisation" x="-297" y="-586">O2mixed?</label>
+		<transition id="id29">
+			<source ref="id20"/>
+			<target ref="id21"/>
+			<label kind="synchronisation" x="-297" y="-586">O2mixed!</label>
 		</transition>
-		<transition>
-			<source ref="id14"/>
-			<target ref="id15"/>
+		<transition id="id30">
+			<source ref="id19"/>
+			<target ref="id20"/>
 			<label kind="synchronisation" x="-161" y="-654">O2on!</label>
 		</transition>
-		<transition>
-			<source ref="id13"/>
-			<target ref="id15"/>
+		<transition id="id31">
+			<source ref="id18"/>
+			<target ref="id20"/>
 			<label kind="synchronisation" x="-280" y="-654">airOn!</label>
 		</transition>
-		<transition>
-			<source ref="id5"/>
-			<target ref="id14"/>
-			<label kind="guard" x="-170" y="-748">a==1</label>
+		<transition id="id32">
+			<source ref="id10"/>
+			<target ref="id19"/>
 			<label kind="synchronisation" x="-170" y="-731">airOn!</label>
 		</transition>
-		<transition>
-			<source ref="id5"/>
-			<target ref="id13"/>
-			<label kind="guard" x="-263" y="-756">a==1</label>
+		<transition id="id33">
+			<source ref="id10"/>
+			<target ref="id18"/>
 			<label kind="synchronisation" x="-272" y="-731">O2on!</label>
 		</transition>
-		<transition>
-			<source ref="id8"/>
-			<target ref="id6"/>
+		<transition id="id34">
+			<source ref="id13"/>
+			<target ref="id11"/>
 			<label kind="guard" x="-110" y="-297">a&lt;tInsp</label>
 		</transition>
-		<transition>
-			<source ref="id11"/>
-			<target ref="id6"/>
+		<transition id="id35">
+			<source ref="id16"/>
+			<target ref="id11"/>
 			<label kind="guard" x="-314" y="-136">a&lt;totalT</label>
 			<nail x="-204" y="-110"/>
 		</transition>
-		<transition>
-			<source ref="id12"/>
-			<target ref="id6"/>
-			<label kind="guard" x="-586" y="-476">pause==pExp</label>
-			<label kind="assignment" x="-476" y="-501">a=0</label>
+		<transition id="id36">
+			<source ref="id17"/>
+			<target ref="id11"/>
+			<label kind="guard" x="-654" y="-510">a&gt;=totalT &amp;&amp; pause==pExp</label>
+			<label kind="assignment" x="-442" y="-535">a=0,
+Q=0</label>
 			<nail x="-425" y="-493"/>
 		</transition>
-		<transition>
-			<source ref="id11"/>
-			<target ref="id12"/>
-			<label kind="guard" x="-595" y="-314">a&gt;=totalT</label>
-			<label kind="synchronisation" x="-578" y="-272">expOff!</label>
+		<transition id="id37">
+			<source ref="id16"/>
+			<target ref="id17"/>
+			<label kind="guard" x="-629" y="-289">timeExpV==tExp</label>
+			<label kind="synchronisation" x="-560" y="-271">expOff!</label>
 			<label kind="assignment" x="-552" y="-246">pause=0,
 Q=0</label>
 		</transition>
-		<transition>
-			<source ref="id6"/>
-			<target ref="id10"/>
+		<transition id="id38">
+			<source ref="id11"/>
+			<target ref="id15"/>
 			<label kind="guard" x="-314" y="-408">a&gt;tInsp</label>
 			<label kind="synchronisation" x="-382" y="-425">expOn!</label>
 			<label kind="assignment" x="-390" y="-408">pause=0</label>
 		</transition>
-		<transition>
-			<source ref="id9"/>
-			<target ref="id6"/>
-			<label kind="guard" x="17" y="-510">pause==pInsp</label>
+		<transition id="id39">
+			<source ref="id14"/>
+			<target ref="id11"/>
+			<label kind="guard" x="17" y="-510">a&lt;totalT &amp;&amp; pause==pInsp</label>
 			<nail x="8" y="-484"/>
 		</transition>
-		<transition>
-			<source ref="id8"/>
-			<target ref="id9"/>
-			<label kind="guard" x="110" y="-272">a&gt;=tInsp</label>
+		<transition id="id40">
+			<source ref="id13"/>
+			<target ref="id14"/>
+			<label kind="guard" x="161" y="-289">a&gt;=tInsp</label>
+			<label kind="synchronisation" x="110" y="-204">supplyOff!</label>
 			<label kind="assignment" x="110" y="-246">pause=0,
 Q=0</label>
 		</transition>
-		<transition>
-			<source ref="id7"/>
-			<target ref="id8"/>
-			<label kind="assignment" x="17" y="-348">Q=getQ(p1,p2,l1),
+		<transition id="id41">
+			<source ref="id12"/>
+			<target ref="id13"/>
+			<label kind="guard" x="17" y="-374">pause==1</label>
+			<label kind="assignment" x="17" y="-340">Q=getQ(p1,p2,l1),
 p2=p2+getDelta()</label>
 		</transition>
-		<transition>
-			<source ref="id6"/>
-			<target ref="id7"/>
+		<transition id="id42">
+			<source ref="id11"/>
+			<target ref="id12"/>
 			<label kind="guard" x="-102" y="-433">a&lt;=tInsp</label>
 			<label kind="assignment" x="-127" y="-408">pause=0</label>
 		</transition>
 	</template>
 	<template>
-		<name>MixChamber</name>
-		<parameter> broadcast chan &amp;mixed,  broadcast chan  &amp;turnOn,  broadcast chan &amp;turnOff, int[0,100] &amp;duty,  broadcast chan &amp;finConfiguracion, int &amp;mix</parameter>
+		<name>Injector</name>
+		<parameter> broadcast chan &amp;mixed,  broadcast chan  &amp;turnOn,  broadcast chan &amp;turnOff, int[0,100] &amp;duty, int &amp;mix</parameter>
 		<declaration>clock time;
 
 /**
@@ -374,58 +374,65 @@ int params[11] = {0,50,100,120,220,280,350,380,410,450,500};
 int getFlowWithPassage(int n){
     return params[n/10];
 }</declaration>
-		<location id="id19" x="161" y="8">
-			<name x="136" y="25">off</name>
+		<location id="id43" x="68" y="127">
+			<name x="43" y="144">off</name>
 		</location>
-		<location id="id20" x="382" y="8">
-			<name x="374" y="25">on</name>
-			<label kind="invariant" x="365" y="42">time&lt;=tInsp</label>
+		<location id="id44" x="289" y="127">
+			<name x="281" y="144">on</name>
+			<label kind="invariant" x="314" y="119">a&lt;=tInsp</label>
 		</location>
-		<init ref="id19"/>
-		<transition>
-			<source ref="id20"/>
-			<target ref="id19"/>
-			<label kind="guard" x="187" y="110">time==tInsp</label>
-			<label kind="synchronisation" x="187" y="127">mixed!</label>
-			<label kind="assignment" x="187" y="144">mix=getFlowWithPassage(duty)</label>
-			<nail x="263" y="110"/>
+		<init ref="id43"/>
+		<transition id="id45">
+			<source ref="id44"/>
+			<target ref="id44"/>
+			<label kind="synchronisation" x="289" y="8">mixed?</label>
+			<label kind="assignment" x="289" y="25">mix=getFlowWithPassage(duty)</label>
+			<nail x="289" y="59"/>
+			<nail x="289" y="59"/>
+			<nail x="348" y="59"/>
 		</transition>
-		<transition>
-			<source ref="id20"/>
-			<target ref="id19"/>
-			<label kind="synchronisation" x="246" y="-102">turnOff?</label>
-			<label kind="assignment" x="246" y="-85">time=0</label>
-			<nail x="272" y="-68"/>
+		<transition id="id46">
+			<source ref="id44"/>
+			<target ref="id43"/>
+			<label kind="synchronisation" x="136" y="17">turnOff?</label>
+			<nail x="179" y="51"/>
 		</transition>
-		<transition>
-			<source ref="id19"/>
-			<target ref="id20"/>
-			<label kind="synchronisation" x="246" y="17">turnOn?</label>
-			<label kind="assignment" x="246" y="34">time=0</label>
+		<transition id="id47">
+			<source ref="id43"/>
+			<target ref="id44"/>
+			<label kind="synchronisation" x="153" y="136">turnOn?</label>
+			<label kind="assignment" x="153" y="153">a=0</label>
 		</transition>
 	</template>
 	<template>
 		<name>ExpValve</name>
 		<parameter> broadcast chan &amp;done, int &amp;mix</parameter>
-		<location id="id21" x="0" y="0">
+		<location id="id48" x="0" y="0">
 			<name x="-42" y="-8">off</name>
 		</location>
-		<location id="id22" x="221" y="0">
+		<location id="id49" x="221" y="0">
 			<name x="238" y="-8">on</name>
-			<label kind="invariant" x="211" y="17">timeExpV&lt;=tExp</label>
+			<label kind="invariant" x="238" y="8">timeExpV&lt;=tExp</label>
 		</location>
-		<init ref="id21"/>
-		<transition>
-			<source ref="id22"/>
-			<target ref="id21"/>
+		<init ref="id48"/>
+		<transition id="id50">
+			<source ref="id49"/>
+			<target ref="id48"/>
+			<label kind="synchronisation" x="17" y="85">resetExp?</label>
+			<label kind="assignment" x="17" y="102">timeExpV=0</label>
+			<nail x="221" y="85"/>
+			<nail x="0" y="85"/>
+		</transition>
+		<transition id="id51">
+			<source ref="id49"/>
+			<target ref="id48"/>
 			<label kind="synchronisation" x="85" y="-136">expOff?</label>
-			<label kind="assignment" x="85" y="-119">timeExpV=0,
-mix=0</label>
+			<label kind="assignment" x="85" y="-119">timeExpV=0</label>
 			<nail x="110" y="-76"/>
 		</transition>
-		<transition>
-			<source ref="id21"/>
-			<target ref="id22"/>
+		<transition id="id52">
+			<source ref="id48"/>
+			<target ref="id49"/>
 			<label kind="synchronisation" x="68" y="0">expOn?</label>
 			<label kind="assignment" x="68" y="17">timeExpV=0</label>
 		</transition>
@@ -436,7 +443,7 @@ flowrate: Required flow ([L^3 T^-1]; given in liters per minute )
 FiO2: Fraction of inspirated oxygen, given in percentage of oxygen in the air
 **/
 int[0,500] flowrate = 500;
-int[1,10] FiO2 = 10;
+int[1,100] FiO2 = 10;
 
 /**
 Duty: The opening of the injector's valve, where 100 is fully opened and 0 is fully closed.
@@ -455,16 +462,15 @@ config = Setup(flowrate, FiO2, airDuty, o2Duty);
 
 broadcast chan turnO2On; 
 broadcast chan turnAirOn;
-broadcast chan turnO2Off; 
-broadcast chan turnAirOff;
+broadcast chan supplyOff;
 
 int mix=0;
 
 broadcast chan O2Mixed;
 broadcast chan airMixed;
 
-o2Valve = MixChamber(O2Mixed, turnO2On, turnO2Off, o2Duty, configDone, mix);
-airValve = MixChamber(airMixed, turnAirOn, turnAirOff, airDuty, configDone, mix);
+o2Valve = Injector(O2Mixed, turnO2On, supplyOff, o2Duty, mix);
+airValve = Injector(airMixed, turnAirOn, supplyOff, airDuty, mix);
 
 /**
 expiration valve
@@ -475,7 +481,7 @@ broadcast chan turnExpValveOff;
 
 expValve = ExpValve(mixExpired, mix);
 
-Ventilator = Control(pInsp,pExp,tInsp,tExp, totalT, O2Mixed, turnO2On, turnO2Off, airMixed, turnAirOn, turnAirOff, mixExpired);
+Ventilator = Control(pInsp,pExp,tInsp,tExp, totalT, O2Mixed, turnO2On, airMixed, turnAirOn, supplyOff);
 
 system  config, o2Valve, airValve, expValve, Ventilator;
 </system>
@@ -484,76 +490,488 @@ system  config, o2Valve, airValve, expValve, Ventilator;
 			<formula>A[] not deadlock</formula>
 			<comment>At every stage, at least one transition will be eventually enabled. 
 </comment>
+			<result outcome="success" type="quality" timestamp="2023-07-28 17:50:22 +0200">
+			</result>
 		</query>
 		<query>
 			<formula>E&lt;&gt; Ventilator.Insp</formula>
 			<comment>It is possible to reach the inspiration state.</comment>
+			<result outcome="success" type="quality" timestamp="2023-07-28 17:50:25 +0200">
+			</result>
 		</query>
 		<query>
 			<formula>E&lt;&gt; Ventilator.Exp</formula>
 			<comment>It is possible to reach the expiration state.</comment>
+			<result outcome="success" type="quality" timestamp="2023-07-28 17:50:27 +0200">
+			</result>
 		</query>
 		<query>
 			<formula>E&lt;&gt; Ventilator.ExpPause</formula>
-			<comment></comment>
+			<comment/>
+			<result outcome="success" type="quality" timestamp="2023-07-28 17:50:29 +0200">
+			</result>
 		</query>
 		<query>
 			<formula>E&lt;&gt; Ventilator.InsPause</formula>
-			<comment></comment>
+			<comment/>
+			<result outcome="success" type="quality" timestamp="2023-07-28 17:50:30 +0200">
+			</result>
 		</query>
 		<query>
 			<formula>A[] (not (o2Valve.on or airValve.on) or expValve.off)</formula>
 			<comment>If there is an inspiration injector on, then the expiration valve is closed.</comment>
+			<result outcome="success" type="quality" timestamp="2023-07-28 17:50:32 +0200">
+			</result>
 		</query>
 		<query>
 			<formula>E&lt;&gt; o2Valve.on or airValve.on</formula>
 			<comment>It is possible to reach states where injectors are on. 
 This property also verifies that the previous property has a possible antecedent.</comment>
+			<result outcome="success" type="quality" timestamp="2023-07-28 17:50:34 +0200">
+			</result>
 		</query>
 		<query>
 			<formula>A[] (not expValve.on or (o2Valve.off and airValve.off))</formula>
 			<comment>For every path, if the expiration valve is on, both injectors
 must be off.</comment>
+			<result outcome="success" type="quality" timestamp="2023-07-28 17:50:36 +0200">
+			</result>
 		</query>
 		<query>
 			<formula>E&lt;&gt; expValve.on</formula>
 			<comment>It is possible to reach a state where the expiration valve
 is on. This property also verifies that the previous property
 has a possible antecedent.</comment>
+			<result outcome="success" type="quality" timestamp="2023-07-28 17:50:37 +0200">
+			</result>
 		</query>
 		<query>
 			<formula>A[] (not expValve.on or (timeExpV&lt;=tExp))</formula>
 			<comment>The expiration valve never lasts more than the configured
 duration for the expiration phase (tExp) turned on</comment>
+			<result outcome="success" type="quality" timestamp="2023-07-28 17:50:39 +0200">
+			</result>
 		</query>
 		<query>
-			<formula>E&lt;&gt;(expValve.on and timeExpV &gt; tExp)</formula>
-			<comment></comment>
-		</query>
-		<query>
-			<formula>A[] (not (o2Valve.on and airValve.on) or not(o2Valve.time&gt;tInsp))</formula>
+			<formula>A[] (not (o2Valve.on and airValve.on) or not(a&gt;tInsp))</formula>
 			<comment>The oxygen and air injectors are never on for more than
 the configured inspiration time (tInsp).</comment>
+			<result outcome="success" type="quality" timestamp="2023-07-28 17:50:42 +0200">
+			</result>
 		</query>
 		<query>
-			<formula>simulate[Ventilator.a&lt;=totalT*2]{Q}</formula>
-			<comment></comment>
+			<formula>Pr[a &lt;= tInsp-1;500](&lt;&gt; Ventilator.Exp)</formula>
+			<comment>Tells the probability of leaving the inspiration state too early. This is a safety property to ensure the patient receives air to her lungs
+at the appropriate time.</comment>
+			<result outcome="success" type="interval" value="≤ 0.00735061 (95% CI)" timestamp="2023-07-28 17:50:46 +0200">
+				<details>≤ 0.00735061 (95% CI)</details>
+			</result>
 		</query>
 		<query>
-			<formula>Pr[Ventilator.a &lt;= tInsp](&lt;&gt; Ventilator.Exp)</formula>
-			<comment></comment>
+			<formula>Pr[a &lt;= totalT+pExp;500] (&lt;&gt; Ventilator.ExpPause)</formula>
+			<comment/>
+			<result outcome="success" type="interval" value="≥ 0.992649 (95% CI)" timestamp="2023-07-28 17:50:49 +0200">
+				<details>≥ 0.992649 (95% CI)</details>
+				<plot title="Probability Density Distribution" xaxis="a" yaxis="probability density">
+					<series title="density" type="b(0.000000)" color="0x0000ff" encoding="csv">320.0,4.503599627370496E15
+					</series>
+					<series title="average" type="pl" color="0x00dd00" encoding="csv">320.0,0.0
+320.0,4.503599627370496E15
+					</series>
+					<comment>Parameters: α=0.05, ε=0.05, bucket width=2.2204e-16, bucket count=1
+Runs: 500 in total, 500 (100%) displayed, 0 (0%) remaining
+Span of displayed sample: [320, 320]
+Mean estimate of displayed sample: ≈ 320</comment>
+				</plot>
+				<plot title="Probability Density Confidence Intervals" xaxis="a" yaxis="probability density">
+					<series title="upper limit" type="b(0.000000)" color="0xa0a0ff" encoding="csv">320.0,1.0
+					</series>
+					<series title="lower limit" type="b(0.000000)" color="0x0000ff" encoding="csv">320.0,0.9926493899480923
+					</series>
+					<series title="average" type="pl" color="0x00dd00" encoding="csv">320.0,0.0
+320.0,4.503599627370496E15
+					</series>
+					<comment>Parameters: α=0.05, ε=0.05, bucket width=2.2204e-16, bucket count=1
+Runs: 500 in total, 500 (100%) displayed, 0 (0%) remaining
+Span of displayed sample: [320, 320]
+Mean estimate of displayed sample: ≈ 320</comment>
+				</plot>
+				<plot title="Probability Distribution" xaxis="a" yaxis="probability">
+					<series title="probability" type="b(0.000000)" color="0x0000ff" encoding="csv">320.0,1.0
+					</series>
+					<series title="average" type="pl" color="0x00dd00" encoding="csv">320.0,0.0
+320.0,1.0
+					</series>
+					<comment>Parameters: α=0.05, ε=0.05, bucket width=2.2204e-16, bucket count=1
+Runs: 500 in total, 500 (100%) displayed, 0 (0%) remaining
+Span of displayed sample: [320, 320]
+Mean estimate of displayed sample: ≈ 320</comment>
+				</plot>
+				<plot title="Probability Confidence Intervals" xaxis="a" yaxis="probability">
+					<series title="upper limit" type="b(0.000000)" color="0xa0a0ff" encoding="csv">320.0,1.0
+					</series>
+					<series title="lower limit" type="b(0.000000)" color="0x0000ff" encoding="csv">320.0,0.9926493899480923
+					</series>
+					<series title="average" type="pl" color="0x00dd00" encoding="csv">320.0,0.0
+320.0,1.0
+					</series>
+					<comment>Parameters: α=0.05, ε=0.05, bucket width=2.2204e-16, bucket count=1
+Runs: 500 in total, 500 (100%) displayed, 0 (0%) remaining
+Span of displayed sample: [320, 320]
+Mean estimate of displayed sample: ≈ 320</comment>
+				</plot>
+				<plot title="Cumulative Probability Distribution" xaxis="a" yaxis="probability">
+					<series title="cumulative" type="l" color="0x000000" encoding="csv">320.0,0.0
+					</series>
+					<series title="average" type="pl" color="0x00dd00" encoding="csv">320.0,0.0
+320.0,1.0
+					</series>
+					<comment>Parameters: α=0.05, ε=0.05, bucket width=2.2204e-16, bucket count=1
+Runs: 500 in total, 500 (100%) displayed, 0 (0%) remaining
+Span of displayed sample: [320, 320]
+Mean estimate of displayed sample: ≈ 320</comment>
+				</plot>
+				<plot title="Cumulative Probability Confidence Intervals" xaxis="a" yaxis="probability">
+					<series title="upper limit" type="k" color="0x0000dd" encoding="csv">320.0,0.007350610051907787
+					</series>
+					<series title="lower limit" type="k" color="0xdd0000" encoding="csv">320.0,0.0
+					</series>
+					<series title="cumulative" type="l" color="0x000000" encoding="csv">320.0,0.0
+					</series>
+					<series title="average" type="pl" color="0x00dd00" encoding="csv">320.0,0.0
+320.0,1.0
+					</series>
+					<comment>Parameters: α=0.05, ε=0.05, bucket width=2.2204e-16, bucket count=1
+Runs: 500 in total, 500 (100%) displayed, 0 (0%) remaining
+Span of displayed sample: [320, 320]
+Mean estimate of displayed sample: ≈ 320</comment>
+				</plot>
+				<plot title="Frequency Histogram" xaxis="a" yaxis="count">
+					<series title="count" type="b(0.000000)" color="0x0000ff" encoding="csv">320.0,500.0
+					</series>
+					<series title="average" type="pl" color="0x00dd00" encoding="csv">320.0,0.0
+320.0,500.0
+					</series>
+					<comment>Parameters: α=0.05, ε=0.05, bucket width=2.2204e-16, bucket count=1
+Runs: 500 in total, 500 (100%) displayed, 0 (0%) remaining
+Span of displayed sample: [320, 320]
+Mean estimate of displayed sample: ≈ 320</comment>
+				</plot>
+			</result>
 		</query>
 		<query>
-			<formula>E&lt;&gt;(Ventilator.Exp and Ventilator.a&lt;=tInsp)</formula>
-			<comment></comment>
+			<formula>simulate[&lt;=totalT]{Q}</formula>
+			<comment/>
+			<result outcome="success" type="quality" timestamp="2023-07-28 17:50:52 +0200">
+				<plot title="Simulations (1)" xaxis="time" yaxis="value">
+					<series title="Q" type="l" color="0xff0000" encoding="csv">0.0,0.0
+1.8035158084239813,0.0
+1.8035158084239813,128.0
+3.803515808423981,128.0
+3.803515808423981,127.0
+8.803515808423981,127.0
+8.803515808423981,126.0
+12.803515808423981,126.0
+12.803515808423981,125.0
+16.80351580842398,125.0
+16.80351580842398,124.0
+21.80351580842398,124.0
+21.80351580842398,123.0
+25.80351580842398,123.0
+25.80351580842398,122.0
+30.80351580842398,122.0
+30.80351580842398,121.0
+34.80351580842398,121.0
+34.80351580842398,120.0
+39.80351580842398,120.0
+39.80351580842398,119.0
+43.80351580842398,119.0
+43.80351580842398,118.0
+48.80351580842398,118.0
+48.80351580842398,117.0
+53.80351580842398,117.0
+53.80351580842398,116.0
+57.80351580842398,116.0
+57.80351580842398,115.0
+62.80351580842398,115.0
+62.80351580842398,114.0
+67.80351580842398,114.0
+67.80351580842398,113.0
+72.80351580842398,113.0
+72.80351580842398,112.0
+77.80351580842398,112.0
+77.80351580842398,111.0
+82.80351580842398,111.0
+82.80351580842398,110.0
+87.80351580842398,110.0
+87.80351580842398,109.0
+92.80351580842398,109.0
+92.80351580842398,108.0
+97.80351580842398,108.0
+97.80351580842398,107.0
+100.80351580842398,107.0
+100.80351580842398,0.0
+121.80351580842398,0.0
+121.80351580842398,-226.0
+122.80351580842398,-226.0
+122.80351580842398,-221.0
+123.80351580842398,-221.0
+123.80351580842398,-217.0
+124.80351580842398,-217.0
+124.80351580842398,-213.0
+125.80351580842398,-213.0
+125.80351580842398,-209.0
+126.80351580842398,-209.0
+126.80351580842398,-205.0
+127.80351580842398,-205.0
+127.80351580842398,-202.0
+128.80351580842398,-202.0
+128.80351580842398,-198.0
+129.80351580842398,-198.0
+129.80351580842398,-194.0
+130.80351580842398,-194.0
+130.80351580842398,-191.0
+131.80351580842398,-191.0
+131.80351580842398,-187.0
+132.80351580842398,-187.0
+132.80351580842398,-184.0
+133.80351580842398,-184.0
+133.80351580842398,-180.0
+134.80351580842398,-180.0
+134.80351580842398,-177.0
+135.80351580842398,-177.0
+135.80351580842398,-174.0
+136.80351580842398,-174.0
+136.80351580842398,-170.0
+137.80351580842398,-170.0
+137.80351580842398,-167.0
+138.80351580842398,-167.0
+138.80351580842398,-164.0
+139.80351580842398,-164.0
+139.80351580842398,-161.0
+140.80351580842398,-161.0
+140.80351580842398,-158.0
+141.80351580842398,-158.0
+141.80351580842398,-155.0
+142.80351580842398,-155.0
+142.80351580842398,-153.0
+143.80351580842398,-153.0
+143.80351580842398,-150.0
+144.80351580842398,-150.0
+144.80351580842398,-147.0
+145.80351580842398,-147.0
+145.80351580842398,-144.0
+146.80351580842398,-144.0
+146.80351580842398,-142.0
+147.80351580842398,-142.0
+147.80351580842398,-139.0
+148.80351580842398,-139.0
+148.80351580842398,-136.0
+149.80351580842398,-136.0
+149.80351580842398,-134.0
+150.80351580842398,-134.0
+150.80351580842398,-132.0
+151.80351580842398,-132.0
+151.80351580842398,-129.0
+152.80351580842398,-129.0
+152.80351580842398,-127.0
+153.80351580842398,-127.0
+153.80351580842398,-124.0
+154.80351580842398,-124.0
+154.80351580842398,-122.0
+155.80351580842398,-122.0
+155.80351580842398,-120.0
+156.80351580842398,-120.0
+156.80351580842398,-118.0
+157.80351580842398,-118.0
+157.80351580842398,-116.0
+158.80351580842398,-116.0
+158.80351580842398,-114.0
+159.80351580842398,-114.0
+159.80351580842398,-111.0
+160.80351580842398,-111.0
+160.80351580842398,-109.0
+161.80351580842398,-109.0
+161.80351580842398,-107.0
+162.80351580842398,-107.0
+162.80351580842398,-105.0
+163.80351580842398,-105.0
+163.80351580842398,-104.0
+164.80351580842398,-104.0
+164.80351580842398,-102.0
+165.80351580842398,-102.0
+165.80351580842398,-100.0
+166.80351580842398,-100.0
+166.80351580842398,-98.0
+167.80351580842398,-98.0
+167.80351580842398,-96.0
+168.80351580842398,-96.0
+168.80351580842398,-94.0
+169.80351580842398,-94.0
+169.80351580842398,-93.0
+170.80351580842398,-93.0
+170.80351580842398,-91.0
+171.80351580842398,-91.0
+171.80351580842398,-89.0
+172.80351580842398,-89.0
+172.80351580842398,-88.0
+173.80351580842398,-88.0
+173.80351580842398,-86.0
+174.80351580842398,-86.0
+174.80351580842398,-85.0
+175.80351580842398,-85.0
+175.80351580842398,-83.0
+176.80351580842398,-83.0
+176.80351580842398,-82.0
+177.80351580842398,-82.0
+177.80351580842398,-80.0
+178.80351580842398,-80.0
+178.80351580842398,-79.0
+179.80351580842398,-79.0
+179.80351580842398,-77.0
+180.80351580842398,-77.0
+180.80351580842398,-76.0
+181.80351580842398,-76.0
+181.80351580842398,-74.0
+182.80351580842398,-74.0
+182.80351580842398,-73.0
+183.80351580842398,-73.0
+183.80351580842398,-72.0
+184.80351580842398,-72.0
+184.80351580842398,-71.0
+185.80351580842398,-71.0
+185.80351580842398,-69.0
+186.80351580842398,-69.0
+186.80351580842398,-68.0
+187.80351580842398,-68.0
+187.80351580842398,-67.0
+188.80351580842398,-67.0
+188.80351580842398,-66.0
+189.80351580842398,-66.0
+189.80351580842398,-64.0
+190.80351580842398,-64.0
+190.80351580842398,-63.0
+191.80351580842398,-63.0
+191.80351580842398,-62.0
+192.80351580842398,-62.0
+192.80351580842398,-61.0
+193.80351580842398,-61.0
+193.80351580842398,-60.0
+194.80351580842398,-60.0
+194.80351580842398,-59.0
+195.80351580842398,-59.0
+195.80351580842398,-58.0
+196.80351580842398,-58.0
+196.80351580842398,-57.0
+197.80351580842398,-57.0
+197.80351580842398,-56.0
+198.80351580842398,-56.0
+198.80351580842398,-55.0
+199.80351580842398,-55.0
+199.80351580842398,-54.0
+200.80351580842398,-54.0
+200.80351580842398,-53.0
+201.80351580842398,-53.0
+201.80351580842398,-52.0
+202.80351580842398,-52.0
+202.80351580842398,-51.0
+203.80351580842398,-51.0
+203.80351580842398,-50.0
+204.80351580842398,-50.0
+204.80351580842398,-49.0
+206.80351580842398,-49.0
+206.80351580842398,-48.0
+207.80351580842398,-48.0
+207.80351580842398,-47.0
+208.80351580842398,-47.0
+208.80351580842398,-46.0
+209.80351580842398,-46.0
+209.80351580842398,-45.0
+211.80351580842398,-45.0
+211.80351580842398,-44.0
+212.80351580842398,-44.0
+212.80351580842398,-43.0
+213.80351580842398,-43.0
+213.80351580842398,-42.0
+214.80351580842398,-42.0
+214.80351580842398,-41.0
+216.80351580842398,-41.0
+216.80351580842398,-40.0
+217.80351580842398,-40.0
+217.80351580842398,-39.0
+219.80351580842398,-39.0
+219.80351580842398,-38.0
+221.80351580842398,-38.0
+221.80351580842398,-37.0
+222.80351580842398,-37.0
+222.80351580842398,-36.0
+224.80351580842398,-36.0
+224.80351580842398,-35.0
+225.80351580842398,-35.0
+225.80351580842398,-34.0
+227.80351580842398,-34.0
+227.80351580842398,-33.0
+229.80351580842398,-33.0
+229.80351580842398,-32.0
+231.80351580842398,-32.0
+231.80351580842398,-31.0
+233.80351580842398,-31.0
+233.80351580842398,-30.0
+235.80351580842398,-30.0
+235.80351580842398,-29.0
+237.80351580842398,-29.0
+237.80351580842398,-28.0
+239.80351580842398,-28.0
+239.80351580842398,-27.0
+241.80351580842398,-27.0
+241.80351580842398,-26.0
+243.80351580842398,-26.0
+243.80351580842398,-25.0
+246.80351580842398,-25.0
+246.80351580842398,-24.0
+248.80351580842398,-24.0
+248.80351580842398,-23.0
+251.80351580842398,-23.0
+251.80351580842398,-22.0
+254.80351580842398,-22.0
+254.80351580842398,-21.0
+256.803515808424,-21.0
+256.803515808424,-20.0
+260.803515808424,-20.0
+260.803515808424,-19.0
+264.803515808424,-19.0
+264.803515808424,-18.0
+268.803515808424,-18.0
+268.803515808424,-17.0
+271.803515808424,-17.0
+271.803515808424,-16.0
+275.803515808424,-16.0
+275.803515808424,-15.0
+279.803515808424,-15.0
+279.803515808424,-14.0
+283.803515808424,-14.0
+283.803515808424,-13.0
+290.803515808424,-13.0
+290.803515808424,-12.0
+298.803515808424,-12.0
+298.803515808424,-11.0
+306.803515808424,-11.0
+306.803515808424,-10.0
+313.803515808424,-10.0
+313.803515808424,-9.0
+320.0,-9.0
+					</series>
+					<comment/>
+				</plot>
+			</result>
 		</query>
 		<query>
-			<formula>Pr[Ventilator.a &lt;= totalT*5](&lt;&gt;Ventilator.ExpPause)</formula>
-			<comment></comment>
+			<formula>E[&lt;=totalT;500](max:Q)</formula>
+			<comment/>
 		</query>
 		<query>
-			<formula>E&lt;&gt;(Ventilator.ExpPause and Ventilator.a &lt; totalT)</formula>
-			<comment>Is it possible to reach the expiratory pause before totalT? (Safety property, should be false).</comment>
+			<formula>E[&lt;=totalT;500](min:Q)</formula>
+			<comment/>
 		</query>
 	</queries>
 </nta>
